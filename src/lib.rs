@@ -1,80 +1,91 @@
-// BSL 1.0/Apache 2.0 License
+// Copyright John Nunley, 2022.
+// 
+// This software is distributed under the Boost Software License Version 1.0 and the Apache
+// 2.0 License, at your option. See the `LICENSE-BOOST` and `LICENSE-APACHE` files in the
+// root of this repository for the full text of the licenses.
+// 
+// --------------------------------------------------------------------------------------------
+// 
+//  Distributed under the Boost Software License, Version 1.0.
+//    (See accompanying file LICENSE-BOOST or copy at
+//        https://www.boost.org/LICENSE_1_0.txt)
+// 
+// --------------------------------------------------------------------------------------------
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// 
+//     http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 //! A set of generic tuple primitives that may be optimized using SIMD.
 //!
 //! This crate provides two types: [`Double`] and [`Quad`]. For all intents and purposes,
 //! [`Double`] is equivalent to a `[T; 2]` and [`Quad`] is equivalent to a `[T; 4]`.
 //! In fact, on Stable Rust, they are just thin wrappers around arrays.
-//! 
+//!
 //! However, if this crate is compiled with Nightly Rust, in certain cases they will b
 //! replaced with SIMD types. Using specialization, on certain platforms these types
-//! will be optimized using SIMD:
-//! 
-//! - `i32`
-//! - `u32`
-//! - `f32`
-//! 
-//! This is not a guarantee. More types may be added or removed in the future, which will
-//! be signified with a bump in the patch version.
-//! 
-//! These architecture will be optimized if SIMD is detected during compile time:
-//! 
-//! - `x86`
-//! - `x86_64`
-//! - `arm`
-//! - `aarch64`
-//! 
-//! As with the above, this is not a guarantee. More architectures may be added or removed
-//! in the future, which will be signified with a bump in the patch version.
-//! 
+//! will be optimized using SIMD. SIMD is done using the currently-unstable `portable_simd`
+//! feature in the standard library. Currently, all of the elementary number types
+//! except for `u128` and `i128` are optimized in this way. This optimization includes
+//! `f32` and `f64`.
+//!
 //! ## Goals
-//! 
+//!
 //! The goal of this crate is to let users have their cake and eat it, too. You can write
-//! code using [`Double`] and [`Quad`] without worrying about whether or not they are 
+//! code using [`Double`] and [`Quad`] without worrying about whether or not they are
 //! optimized using SIMD. If they can be optimized properly, they will. If not, it will
 //! fall back to the generic implementation.
-//! 
+//!
 //! The primary use case for this crate is in geometry libraries. [`Double`] is intended
 //! to represent a single point, while [`Rect`] is intended to represent a rectangle.
 //! However, it's likely that this crate will be useful in other areas as well.
-//! 
+//!
 //! This crate is also `no_std`, allowing it to be used seamlessly on embedded platforms.
-//! 
+//!
 //! ## Example
-//! 
+//!
 //! ```
 //! use breadsimd::Double;
 //! use core::num::Wrapping;
-//! 
+//!
 //! // At the time of writing, `Wrapping<u32>` is not optimized using SIMD.
 //! let mut a = Double::new([Wrapping(1), Wrapping(2)]);
 //! a += Double::new([Wrapping(3), Wrapping(4)]);
 //! assert_eq!(a, Double::new([Wrapping(4), Wrapping(6)]));
-//! 
+//!
 //! // However, `u32` is optimized using SIMD.
 //! let mut b = Double::<u32>::new([1, 2]);
 //! b += Double::new([3, 4]);
-//! assert_eq!(b, Double::new([4, 6])); 
+//! assert_eq!(b, Double::new([4, 6]));
 //! ```
 
 #![cfg_attr(not(breadsimd_no_nightly), allow(incomplete_features))]
-#![cfg_attr(not(breadsimd_no_nightly), feature(specialization))]
+#![cfg_attr(not(breadsimd_no_nightly), feature(portable_simd, specialization))]
+#![forbid(
+    unsafe_code,
+    future_incompatible,
+    missing_docs,
+    missing_debug_implementations
+)]
 #![no_std]
+#![warn(clippy::pedantic)]
+
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(test)]
 extern crate std;
 
 cfg_if::cfg_if! {
     // If we don't support SIMD, just use the stable implementation.
-    if #[cfg(all(
-        not(breadsimd_no_nightly),
-        any(
-            target_arch = "x86",
-            target_arch = "x86_64",
-            target_arch = "arm",
-            target_arch = "aarch64",
-        ),
-    ))] {
+    if #[cfg(not(breadsimd_no_nightly))] {
         mod optimized;
         use optimized as imp;
     } else {

@@ -1,4 +1,28 @@
-// BSL 1.0/Apache 2.0 License
+// Copyright John Nunley, 2022.
+// 
+// This software is distributed under the Boost Software License Version 1.0 and the Apache
+// 2.0 License, at your option. See the `LICENSE-BOOST` and `LICENSE-APACHE` files in the
+// root of this repository for the full text of the licenses.
+// 
+// --------------------------------------------------------------------------------------------
+// 
+//  Distributed under the Boost Software License, Version 1.0.
+//    (See accompanying file LICENSE-BOOST or copy at
+//        https://www.boost.org/LICENSE_1_0.txt)
+// 
+// --------------------------------------------------------------------------------------------
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// 
+//     http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 use breadsimd::{Double, Quad};
 
@@ -40,7 +64,7 @@ macro_rules! run_test {
         $with_quad:expr,
         $output:expr
     ) => {{
-        run_test::<u64>($input1, $input2, $with_double, $with_quad, $output);
+        run_test::<u128>($input1, $input2, $with_double, $with_quad, $output);
         run_test::<u32>($input1, $input2, $with_double, $with_quad, $output);
         run_test::<i32>($input1, $input2, $with_double, $with_quad, $output);
         run_test::<f32>(
@@ -59,7 +83,7 @@ macro_rules! run_test {
         $with_quad:expr,
         $output:expr
     ) => {{
-        run_test::<u64>($input1, $input2, $with_double, $with_quad, $output);
+        run_test::<u128>($input1, $input2, $with_double, $with_quad, $output);
         run_test::<u32>($input1, $input2, $with_double, $with_quad, $output);
         run_test::<i32>($input1, $input2, $with_double, $with_quad, $output);
     }};
@@ -139,7 +163,7 @@ fn float_div() {
         [8.0, 8.0, 7.0, 6.0],
         |d1, d2| d1 / d2,
         |q1, q2| q1 / q2,
-        [1.5, 4.25, 8.0, 13.0]
+        [1.5, 4.25, 8.0, 13.0],
     );
 }
 
@@ -205,16 +229,28 @@ fn eq() {
     run_test!(
         [1, 2, 3, 4],
         [1, 2, 3, 4],
-        |d1, d2| { assert_eq!(d1, d2); d1 },
-        |q1, q2| { assert_eq!(q1, q2); q1 },
+        |d1, d2| {
+            assert_eq!(d1, d2);
+            d1
+        },
+        |q1, q2| {
+            assert_eq!(q1, q2);
+            q1
+        },
         [1, 2, 3, 4]
     );
 
     run_test!(
         [1, 4, 3, 4],
         [1, 3, 3, 5],
-        |d1, d2| { assert_ne!(d1, d2); d1 },
-        |q1, q2| { assert_ne!(q1, q2); q1 },
+        |d1, d2| {
+            assert_ne!(d1, d2);
+            d1
+        },
+        |q1, q2| {
+            assert_ne!(q1, q2);
+            q1
+        },
         [1, 4, 3, 4]
     );
 }

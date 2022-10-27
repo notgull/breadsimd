@@ -1,9 +1,35 @@
-// BSL 1.0/Apache 2.0 License
+// Copyright John Nunley, 2022.
+// 
+// This software is distributed under the Boost Software License Version 1.0 and the Apache
+// 2.0 License, at your option. See the `LICENSE-BOOST` and `LICENSE-APACHE` files in the
+// root of this repository for the full text of the licenses.
+// 
+// --------------------------------------------------------------------------------------------
+// 
+//  Distributed under the Boost Software License, Version 1.0.
+//    (See accompanying file LICENSE-BOOST or copy at
+//        https://www.boost.org/LICENSE_1_0.txt)
+// 
+// --------------------------------------------------------------------------------------------
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// 
+//     http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 //! A wrapper around a tuple of values. On Stable, due to a lack of specialization, this is always just
 //! a tuple.
 //!
 //! In certain cases, these implementations may even be auto-vectorized.
+
+#![allow(clippy::many_single_char_names)]
 
 use core::cmp;
 use core::fmt;
@@ -11,10 +37,12 @@ use core::hash;
 use core::ops;
 
 /// A set of two values.
+#[derive(Copy, Clone)]
 #[repr(transparent)]
 pub(crate) struct Double<T>(pub(crate) [T; 2]);
 
 /// A set of four values.
+#[derive(Copy, Clone)]
 #[repr(transparent)]
 pub(crate) struct Quad<T>(pub(crate) [T; 4]);
 
@@ -73,18 +101,6 @@ macro_rules! implementation {
                 f.debug_tuple(stringify!($name))
                     $(.field(&self.0[$index]))*
                     .finish()
-            }
-        }
-
-        impl<$gen: Copy> Copy for $name {}
-
-        impl<$gen: Clone> Clone for $name {
-            fn clone(&self) -> Self {
-                $self_ident([$(self.0[$index].clone()),*])
-            }
-
-            fn clone_from(&mut self, source: &Self) {
-                $(self.0[$index].clone_from(&source.0[$index]);)*
             }
         }
 

@@ -3,6 +3,16 @@ name = "breadsimd"
 version = "0.1.0"
 edition = "2018"
 rust-version = "1.32"
+license = "BSL-1.0 OR Apache-2.0"
+repository = "https://github.com/notgull/breadsimd"
+description = "Generic structures optimized through SIMD"
+keywords = ["simd"]
+categories = ["simd", "data-structures"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 cfg-if = "1.0.0"
