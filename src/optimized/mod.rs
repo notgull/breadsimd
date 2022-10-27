@@ -13,8 +13,11 @@ cfg_if::cfg_if! {
     if #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
         #[path = "x86.rs"]
         mod imp;
+    } else if #[cfg(any(target_arch = "arm", target_arch = "aarch64"))] {
+        #[path = "arm.rs"]
+        mod imp;
     } else {
-        use naive as imp;
+        compile_error!("Unsupported architecture");
     }
 }
 
@@ -119,18 +122,22 @@ macro_rules! implementation {
         }
 
         impl<$gen: Copy> $trait_name<$gen> for naive::$struct_name<$gen> {
+            #[inline]
             fn gen_new(array: [$gen; $len]) -> Self {
                 naive::$struct_name::from(array)
             }
 
+            #[inline]
             fn gen_splat(value: $gen) -> Self {
                 naive::$struct_name::splat(value)
             }
 
+            #[inline]
             fn gen_into_inner(self) -> [$gen; $len] {
                 self.into_inner()
             }
 
+            #[inline]
             fn gen_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
             where
                 $gen: fmt::Debug,
@@ -138,6 +145,7 @@ macro_rules! implementation {
                 fmt::Debug::fmt(self, f)
             }
 
+            #[inline]
             fn gen_add(self, other: Self) -> $struct_name<$gen>
             where
                 $gen: ops::Add<Output = $gen>,
@@ -145,6 +153,7 @@ macro_rules! implementation {
                 $struct_name((self + other).into())
             }
 
+            #[inline]
             fn gen_sub(self, other: Self) -> $struct_name<$gen>
             where
                 $gen: ops::Sub<Output = $gen>,
@@ -152,6 +161,7 @@ macro_rules! implementation {
                 $struct_name((self - other).into())
             }
 
+            #[inline]
             fn gen_mul(self, other: Self) -> $struct_name<$gen>
             where
                 $gen: ops::Mul<Output = $gen>,
@@ -159,6 +169,7 @@ macro_rules! implementation {
                 $struct_name((self * other).into())
             }
 
+            #[inline]
             fn gen_div(self, other: Self) -> $struct_name<$gen>
             where
                 $gen: ops::Div<Output = $gen>,
@@ -166,6 +177,7 @@ macro_rules! implementation {
                 $struct_name((self / other).into())
             }
 
+            #[inline]
             fn gen_bitand(self, other: Self) -> $struct_name<$gen>
             where
                 $gen: ops::BitAnd<Output = $gen>,
@@ -173,6 +185,7 @@ macro_rules! implementation {
                 $struct_name((self & other).into())
             }
 
+            #[inline]
             fn gen_bitor(self, other: Self) -> $struct_name<$gen>
             where
                 $gen: ops::BitOr<Output = $gen>,
@@ -180,6 +193,7 @@ macro_rules! implementation {
                 $struct_name((self | other).into())
             }
 
+            #[inline]
             fn gen_bitxor(self, other: Self) -> $struct_name<$gen>
             where
                 $gen: ops::BitXor<Output = $gen>,
@@ -187,6 +201,7 @@ macro_rules! implementation {
                 $struct_name((self ^ other).into())
             }
 
+            #[inline]
             fn gen_not(self) -> $struct_name<$gen>
             where
                 $gen: ops::Not<Output = $gen>,
@@ -194,14 +209,17 @@ macro_rules! implementation {
                 $struct_name((!self).into())
             }
 
+            #[inline]
             fn gen_index(&self, index: usize) -> &$gen {
                 &self[index]
             }
 
+            #[inline]
             fn gen_index_mut(&mut self, index: usize) -> &mut $gen {
                 &mut self[index]
             }
 
+            #[inline]
             fn gen_partial_eq(self, other: Self) -> bool
             where
                 $gen: PartialEq,
@@ -209,6 +227,7 @@ macro_rules! implementation {
                 self == other
             }
 
+            #[inline]
             fn gen_partial_ord(self, other: Self) -> Option<cmp::Ordering>
             where
                 $gen: PartialOrd,
@@ -216,6 +235,7 @@ macro_rules! implementation {
                 self.partial_cmp(&other)
             }
 
+            #[inline]
             fn gen_ord(self, other: Self) -> cmp::Ordering
             where
                 $gen: Ord,
@@ -223,6 +243,7 @@ macro_rules! implementation {
                 self.cmp(&other)
             }
 
+            #[inline]
             fn gen_hash<H: hash::Hasher>(&self, state: &mut H)
             where
                 $gen: hash::Hash,
@@ -230,6 +251,7 @@ macro_rules! implementation {
                 hash::Hash::hash(self, state)
             }
 
+            #[inline]
             fn gen_default() -> Self
             where
                 $gen: Default,

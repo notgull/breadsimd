@@ -10,15 +10,6 @@ use core::fmt;
 use core::hash;
 use core::ops;
 
-#[inline]
-fn make_bool(b: bool) -> u32 {
-    if b {
-        !0
-    } else {
-        0
-    }
-}
-
 /// A set of two values.
 #[repr(transparent)]
 pub(crate) struct Double<T>(pub(crate) [T; 2]);
@@ -44,11 +35,13 @@ trait Foldable<T, O> {
 impl<T, O> Foldable<T, O> for [T; 2] {
     type OutputArray = [O; 2];
 
+    #[inline]
     fn fold(self, mut f: impl FnMut(T) -> O) -> Self::OutputArray {
         let [a, b] = self;
         [f(a), f(b)]
     }
 
+    #[inline]
     fn fold2(self, other: Self, mut f: impl FnMut(T, T) -> O) -> Self::OutputArray {
         let [a, b] = self;
         let [c, d] = other;
@@ -59,11 +52,13 @@ impl<T, O> Foldable<T, O> for [T; 2] {
 impl<T, O> Foldable<T, O> for [T; 4] {
     type OutputArray = [O; 4];
 
+    #[inline]
     fn fold(self, mut f: impl FnMut(T) -> O) -> Self::OutputArray {
         let [a, b, c, d] = self;
         [f(a), f(b), f(c), f(d)]
     }
 
+    #[inline]
     fn fold2(self, other: Self, mut func: impl FnMut(T, T) -> O) -> Self::OutputArray {
         let [a, b, c, d] = self;
         let [e, f, g, h] = other;

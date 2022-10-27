@@ -2,19 +2,40 @@
 
 //! Wrappers around SIMD primitives for f32, i32 and u32.
 
-#[cfg(target_arch = "x86")]
-use core::arch::x86;
-#[cfg(target_arch = "x86_64")]
-use core::arch::x86_64 as x86;
+#![allow(clippy::unnecessary_operation)]
+
+macro_rules! zip {
+    (
+        [$a:expr, $b:expr, $c:expr, $d:expr],
+        [$e:expr, $f:expr, $g:expr, $h:expr],
+        $left: ident, $right: ident,
+        $usage:expr
+    ) => {{
+        let ($left, $right) = ($a, $e);
+        $usage;
+        let ($left, $right) = ($b, $f);
+        $usage;
+        let ($left, $right) = ($c, $g);
+        $usage;
+        let ($left, $right) = ($d, $h);
+        $usage;
+    }};
+}
 
 #[cfg(target_feature = "sse2")]
 mod sse {
-    use super::x86;
+    #[cfg(target_arch = "x86")]
+    use core::arch::x86;
+    #[cfg(target_arch = "x86_64")]
+    use core::arch::x86_64 as x86;
+
     use crate::optimized::{naive, AsDouble, AsQuad, Double, Quad};
 
     use core::cmp;
     use core::fmt;
     use core::hash::{self, Hash};
+
+    const TRUE: u32 = !0;
 
     /// An SIMD-optimizeable set of two f32 values.
     #[derive(Copy, Clone)]
@@ -47,10 +68,10 @@ mod sse {
     pub(crate) struct U32x4(x86::__m128i);
 
     impl F32x2 {
-        pub(crate) fn to_f32x4(self) -> F32x4 {
+        pub(crate) fn to_f32x4(self, pad: f32) -> F32x4 {
             unsafe {
                 let [a, b] = self.0;
-                F32x4(x86::_mm_set_ps(0.0, 0.0, b, a))
+                F32x4(x86::_mm_set_ps(pad, pad, b, a))
             }
         }
     }
@@ -88,12 +109,12 @@ mod sse {
             U32x4(unsafe { x86::_mm_cmpeq_epi32(self.0, other.0) })
         }
 
-        pub(crate) fn packed_gte(self, other: Self) -> U32x4 {
-            todo!()
+        pub(crate) fn packed_gt(self, other: Self) -> U32x4 {
+            U32x4(unsafe { x86::_mm_cmpgt_epi32(self.0, other.0) })
         }
 
-        pub(crate) fn packed_lte(self, other: Self) -> U32x4 {
-            todo!()
+        pub(crate) fn packed_lt(self, other: Self) -> U32x4 {
+            U32x4(unsafe { x86::_mm_cmplt_epi32(self.0, other.0) })
         }
 
         pub(crate) fn xy(self) -> I32x2 {
@@ -111,11 +132,6 @@ mod sse {
                 let [a, b] = self.0;
                 U32x4(x86::_mm_set_epi32(0, 0, b as i32, a as i32))
             }
-        }
-
-        pub(crate) fn all_true(self) -> bool {
-            let mask = unsafe { core::mem::transmute::<_, u64>(self.0) };
-            mask == !0
         }
     }
 
@@ -137,22 +153,12 @@ mod sse {
             U32x4(unsafe { x86::_mm_cmpeq_epi32(self.0, other.0) })
         }
 
-        pub(crate) fn packed_gte(self, other: Self) -> U32x4 {
-            U32x4(unsafe {
-                x86::_mm_cmpgt_epi32(
-                    x86::_mm_xor_si128(self.0, x86::_mm_set1_epi32(i32::MIN)),
-                    x86::_mm_xor_si128(other.0, x86::_mm_set1_epi32(i32::MIN)),
-                )
-            })
+        pub(crate) fn packed_gt(self, other: Self) -> U32x4 {
+            U32x4(unsafe { x86::_mm_cmpgt_epi32(self.0, other.0) })
         }
 
-        pub(crate) fn packed_lte(self, other: Self) -> U32x4 {
-            U32x4(unsafe {
-                x86::_mm_cmplt_epi32(
-                    x86::_mm_xor_si128(self.0, x86::_mm_set1_epi32(i32::MIN)),
-                    x86::_mm_xor_si128(other.0, x86::_mm_set1_epi32(i32::MIN)),
-                )
-            })
+        pub(crate) fn packed_lt(self, other: Self) -> U32x4 {
+            U32x4(unsafe { x86::_mm_cmplt_epi32(self.0, other.0) })
         }
     }
 
@@ -213,19 +219,19 @@ mod sse {
         }
 
         fn gen_add(self, other: Self) -> Double<f32> {
-            Double(self.to_f32x4().gen_add(other.to_f32x4()).0.xy())
+            Double(self.to_f32x4(0.0).gen_add(other.to_f32x4(0.0)).0.xy())
         }
 
         fn gen_sub(self, other: Self) -> Double<f32> {
-            Double(self.to_f32x4().gen_sub(other.to_f32x4()).0.xy())
+            Double(self.to_f32x4(0.0).gen_sub(other.to_f32x4(0.0)).0.xy())
         }
 
         fn gen_mul(self, other: Self) -> Double<f32> {
-            Double(self.to_f32x4().gen_mul(other.to_f32x4()).0.xy())
+            Double(self.to_f32x4(0.0).gen_mul(other.to_f32x4(0.0)).0.xy())
         }
 
         fn gen_div(self, other: Self) -> Double<f32> {
-            Double(self.to_f32x4().gen_div(other.to_f32x4()).0.xy())
+            Double(self.to_f32x4(1.0).gen_div(other.to_f32x4(1.0)).0.xy())
         }
 
         fn gen_bitand(self, _other: Self) -> Double<f32> {
@@ -253,11 +259,11 @@ mod sse {
         }
 
         fn gen_partial_eq(self, other: Self) -> bool {
-            self.to_f32x4().packed_eq(other.to_f32x4()).all_true()
+            self.to_f32x4(0.0).packed_eq(other.to_f32x4(0.0)).all_true()
         }
 
         fn gen_partial_ord(self, other: Self) -> Option<cmp::Ordering> {
-            self.to_f32x4().gen_partial_ord(other.to_f32x4())
+            self.to_f32x4(0.0).gen_partial_ord(other.to_f32x4(0.0))
         }
 
         fn gen_default() -> Self {
@@ -353,15 +359,24 @@ mod sse {
         }
 
         fn gen_partial_ord(self, other: Self) -> Option<cmp::Ordering> {
-            match (
-                self.packed_lte(other).all_true(),
-                self.packed_gte(other).all_true(),
-            ) {
-                (true, true) => Some(cmp::Ordering::Equal),
-                (true, false) => Some(cmp::Ordering::Less),
-                (false, true) => Some(cmp::Ordering::Greater),
-                (false, false) => None,
-            }
+            let [a, b, c, d] = self.packed_lte(other).gen_into_inner();
+            let [e, f, g, h] = self.packed_gte(other).gen_into_inner();
+
+            zip!(
+                [a, b, c, d],
+                [e, f, g, h],
+                left, right,
+                {
+                    match (left, right) {
+                        (0, 0) => return None,
+                        (TRUE, 0) => return Some(cmp::Ordering::Less),
+                        (0, TRUE) => return Some(cmp::Ordering::Greater),
+                        _ => {}
+                    } 
+                }
+            );
+
+            Some(cmp::Ordering::Equal)
         }
 
         fn gen_hash<H: core::hash::Hasher>(&self, _state: &mut H) {
@@ -405,7 +420,12 @@ mod sse {
         }
 
         fn gen_div(self, other: Self) -> Double<i32> {
-            Double(self.to_i32x4().gen_div(other.to_i32x4()).0.xy())
+            // There is no optimized integer division instruction in SSE2, so we
+            // have to do it the slow way.
+            Double::new([
+                self.0[0] / other.0[0],
+                self.0[1] / other.0[1],
+            ])
         }
 
         fn gen_index(&self, index: usize) -> &i32 {
@@ -449,10 +469,7 @@ mod sse {
         }
 
         fn gen_ord(self, other: Self) -> cmp::Ordering {
-            let [a, b] = self.gen_into_inner();
-            let [c, d] = other.gen_into_inner();
-
-            a.cmp(&c).then(b.cmp(&d))
+            self.to_i32x4().gen_ord(other.to_i32x4())
         }
     }
 
@@ -545,15 +562,23 @@ mod sse {
         }
 
         fn gen_ord(self, other: Self) -> cmp::Ordering {
-            match (
-                self.packed_lte(other).all_true(),
-                self.packed_gte(other).all_true(),
-            ) {
-                (true, true) => cmp::Ordering::Equal,
-                (true, false) => cmp::Ordering::Less,
-                (false, true) => cmp::Ordering::Greater,
-                (false, false) => unreachable!(),
-            }
+            let [a, b, c, d] = self.packed_lt(other).gen_into_inner();
+            let [e, f, g, h] = self.packed_gt(other).gen_into_inner(); 
+
+            zip!(
+                [a, b, c, d],
+                [e, f, g, h],
+                left, right,
+                {
+                    match (left, right) {
+                        (TRUE, _) => return cmp::Ordering::Less,
+                        (_, TRUE) => return cmp::Ordering::Greater,
+                        _ => {}
+                    }
+                }
+            );
+
+            cmp::Ordering::Equal
         }
     }
 
@@ -589,7 +614,11 @@ mod sse {
         }
 
         fn gen_div(self, other: Self) -> Double<u32> {
-            Double(self.to_u32x4().gen_div(other.to_u32x4()).0.xy())
+            // There is no SIMD primitive for integer division on x86
+            let [a, b] = self.gen_into_inner();
+            let [c, d] = other.gen_into_inner();
+
+            Double::new([a / c, b / d])
         }
 
         fn gen_index(&self, index: usize) -> &u32 {
@@ -718,15 +747,24 @@ mod sse {
         }
 
         fn gen_ord(self, other: Self) -> cmp::Ordering {
-            match (
-                self.packed_lte(other).all_true(),
-                self.packed_gte(other).all_true(),
-            ) {
-                (true, true) => cmp::Ordering::Equal,
-                (true, false) => cmp::Ordering::Less,
-                (false, true) => cmp::Ordering::Greater,
-                (false, false) => unreachable!(),
-            }
+            // NOTE: These checks may be able to be optimized.
+            let [a, b, c, d] = self.packed_lt(other).gen_into_inner();
+            let [e, f, g, h] = self.packed_gt(other).gen_into_inner();
+            
+            zip!(
+                [a, b, c, d],
+                [e, f, g, h],
+                left, right,
+                {
+                    match (left, right) {
+                        (TRUE, _) => return cmp::Ordering::Less,
+                        (_, TRUE) => return cmp::Ordering::Greater,
+                        _ => {}
+                    }
+                }
+            );
+
+            cmp::Ordering::Equal
         }
 
         fn gen_default() -> Self
@@ -747,8 +785,11 @@ mod sse {
     use crate::optimized::naive::{Double, Quad};
 
     pub(crate) type F32x2 = Double<f32>;
-
     pub(crate) type F32x4 = Quad<f32>;
+    pub(crate) type U32x2 = Double<u32>;
+    pub(crate) type U32x4 = Quad<u32>;
+    pub(crate) type I32x2 = Double<i32>;
+    pub(crate) type I32x4 = Quad<i32>;
 }
 
 pub(super) use sse::*;

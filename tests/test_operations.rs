@@ -51,6 +51,18 @@ macro_rules! run_test {
             ints_to_floats($output),
         );
     }};
+    (
+        no_float,
+        $input1:expr,
+        $input2:expr,
+        $with_double:expr,
+        $with_quad:expr,
+        $output:expr
+    ) => {{
+        run_test::<u64>($input1, $input2, $with_double, $with_quad, $output);
+        run_test::<u32>($input1, $input2, $with_double, $with_quad, $output);
+        run_test::<i32>($input1, $input2, $with_double, $with_quad, $output);
+    }};
 }
 
 #[test]
@@ -109,6 +121,156 @@ fn mul() {
 }
 
 #[test]
-fn bit_and() {
+fn int_div() {
+    run_test!(
+        no_float,
+        [12, 34, 56, 78],
+        [9, 8, 7, 6],
+        |d1, d2| d1 / d2,
+        |q1, q2| q1 / q2,
+        [1, 4, 8, 13]
+    );
+}
 
+#[test]
+fn float_div() {
+    run_test::<f32>(
+        [12.0, 34.0, 56.0, 78.0],
+        [8.0, 8.0, 7.0, 6.0],
+        |d1, d2| d1 / d2,
+        |q1, q2| q1 / q2,
+        [1.5, 4.25, 8.0, 13.0]
+    );
+}
+
+#[test]
+fn bit_and() {
+    run_test!(
+        no_float,
+        [0b1010, 0b1100, 0b1110, 0b1101],
+        [0b0101, 0b0011, 0b0001, 0b0110],
+        |d1, d2| d1 & d2,
+        |q1, q2| q1 & q2,
+        [0b0000, 0b0000, 0b0000, 0b0100]
+    )
+}
+
+#[test]
+fn bit_or() {
+    run_test!(
+        no_float,
+        [0b1010, 0b1100, 0b0010, 0b1101],
+        [0b0101, 0b0011, 0b0001, 0b0110],
+        |d1, d2| d1 | d2,
+        |q1, q2| q1 | q2,
+        [0b1111, 0b1111, 0b0011, 0b1111]
+    )
+}
+
+#[test]
+fn bit_xor() {
+    run_test!(
+        no_float,
+        [0b1010, 0b1100, 0b0010, 0b1101],
+        [0b0101, 0b0011, 0b0001, 0b0110],
+        |d1, d2| d1 ^ d2,
+        |q1, q2| q1 ^ q2,
+        [0b1111, 0b1111, 0b0011, 0b1011]
+    )
+}
+
+#[test]
+fn bit_not() {
+    run_test!(
+        no_float,
+        [0b1010, 0b1100, 0b0010, 0b1101],
+        [0, 0, 0, 0],
+        |d1, _| !d1,
+        |q1, _| !q1,
+        [!0b1010, !0b1100, !0b0010, !0b1101]
+    )
+}
+
+#[test]
+fn index() {
+    let mut d = Double::<i32>::new([1, 2]);
+    d *= Double::splat(2);
+
+    assert_eq!(d[0], 2);
+    assert_eq!(d[1], 4);
+}
+
+#[test]
+fn eq() {
+    run_test!(
+        [1, 2, 3, 4],
+        [1, 2, 3, 4],
+        |d1, d2| { assert_eq!(d1, d2); d1 },
+        |q1, q2| { assert_eq!(q1, q2); q1 },
+        [1, 2, 3, 4]
+    );
+
+    run_test!(
+        [1, 4, 3, 4],
+        [1, 3, 3, 5],
+        |d1, d2| { assert_ne!(d1, d2); d1 },
+        |q1, q2| { assert_ne!(q1, q2); q1 },
+        [1, 4, 3, 4]
+    );
+}
+
+#[test]
+fn default() {
+    let d = Double::<i32>::default();
+    assert_eq!(d, Double::splat(0));
+
+    let q = Quad::<i32>::default();
+    assert_eq!(q, Quad::splat(0));
+}
+
+#[test]
+fn ord() {
+    use core::cmp;
+
+    run_test!(
+        [1, 2, 3, 4],
+        [1, 2, 3, 4],
+        |d1, d2| {
+            assert_eq!(Some(cmp::Ordering::Equal), d1.partial_cmp(&d2));
+            d1
+        },
+        |q1, q2| {
+            assert_eq!(Some(cmp::Ordering::Equal), q1.partial_cmp(&q2));
+            q1
+        },
+        [1, 2, 3, 4]
+    );
+
+    run_test!(
+        [1, 4, 3, 4],
+        [1, 3, 3, 5],
+        |d1, d2| {
+            assert_eq!(Some(cmp::Ordering::Greater), d1.partial_cmp(&d2));
+            d1
+        },
+        |q1, q2| {
+            assert_eq!(Some(cmp::Ordering::Greater), q1.partial_cmp(&q2));
+            q1
+        },
+        [1, 4, 3, 4]
+    );
+
+    run_test!(
+        [1, 3, 3, 5],
+        [1, 4, 3, 4],
+        |d1, d2| {
+            assert_eq!(Some(cmp::Ordering::Less), d1.partial_cmp(&d2));
+            d1
+        },
+        |q1, q2| {
+            assert_eq!(Some(cmp::Ordering::Less), q1.partial_cmp(&q2));
+            q1
+        },
+        [1, 3, 3, 5]
+    );
 }
