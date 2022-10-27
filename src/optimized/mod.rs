@@ -29,14 +29,22 @@ trait Convertable: Copy + Sized {
 
 impl<T: Copy> Convertable for T {
     default type Double = naive::Double<T>;
-
     default type Quad = naive::Quad<T>;
 }
 
 impl Convertable for f32 {
     type Double = imp::F32x2;
-
     type Quad = imp::F32x4;
+}
+
+impl Convertable for i32 {
+    type Double = imp::I32x2;
+    type Quad = imp::I32x4;
+}
+
+impl Convertable for u32 {
+    type Double = imp::U32x2;
+    type Quad = imp::U32x4;
 }
 
 macro_rules! implementation {
@@ -116,7 +124,7 @@ macro_rules! implementation {
             }
 
             fn gen_splat(value: $gen) -> Self {
-                naive::$struct_name::from([value; $len])
+                naive::$struct_name::splat(value)
             }
 
             fn gen_into_inner(self) -> [$gen; $len] {
@@ -233,6 +241,10 @@ macro_rules! implementation {
         impl<$gen: Copy> $struct_name<$gen> {
             pub(crate) fn new(array: [$gen; $len]) -> Self {
                 $struct_name(<$gen as Convertable>::$assoc_name::gen_new(array))
+            }
+
+            pub(crate) fn splat(value: $gen) -> Self {
+                $struct_name(<$gen as Convertable>::$assoc_name::gen_splat(value))
             }
 
             pub(crate) fn into_inner(self) -> [$gen; $len] {

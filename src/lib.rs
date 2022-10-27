@@ -1,6 +1,8 @@
 // BSL 1.0/Apache 2.0 License
 
 //! A set of generic tuple primitives that may be optimized using SIMD.
+//!
+//! This crate provides two types: [`Double`] and [`Quad`].
 
 #![cfg_attr(not(breadsimd_no_nightly), allow(incomplete_features))]
 #![cfg_attr(not(breadsimd_no_nightly), feature(specialization))]
@@ -182,6 +184,11 @@ macro_rules! implementation {
             /// Create a new array from an array.
             pub fn new(array: [$gen; $len]) -> Self {
                 $self_ident(array.into())
+            }
+
+            /// Create a new array populated with a single value in all lanes.
+            pub fn splat(value: $gen) -> Self {
+                $self_ident(imp::$self_ident::splat(value))
             }
 
             /// Get the underlying array.

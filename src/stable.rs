@@ -10,6 +10,15 @@ use core::fmt;
 use core::hash;
 use core::ops;
 
+#[inline]
+fn make_bool(b: bool) -> u32 {
+    if b {
+        !0
+    } else {
+        0
+    }
+}
+
 /// A set of two values.
 #[repr(transparent)]
 pub(crate) struct Double<T>(pub(crate) [T; 2]);
@@ -221,6 +230,17 @@ macro_rules! implementation {
             /// Get the underlying array.
             pub(crate) fn into_inner(self) -> [$gen; $len] {
                 self.0
+            }
+
+            /// Create a new vector with one element repeated.
+            pub(crate) fn splat(value: $gen) -> Self
+            where
+                $gen: Clone,
+            {
+                $self_ident([$({
+                    const _FOR_EACH_ITEM: &str = stringify!($index);
+                    value.clone()
+                }),*])
             }
         }
     }
