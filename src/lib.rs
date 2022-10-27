@@ -104,14 +104,14 @@ use core::fmt;
 use core::ops;
 
 /// A set of two values that may be SIMD optimized.
-/// 
+///
 /// See the [crate-level documentation](crate) for more information.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[repr(transparent)]
 pub struct Double<T: Copy>(imp::Double<T>);
 
 /// A set of four values that may be SIMD optimized.
-/// 
+///
 /// See the [crate-level documentation](crate) for more information.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[repr(transparent)]
