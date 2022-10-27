@@ -1,23 +1,23 @@
 // Copyright John Nunley, 2022.
-// 
+//
 // This software is distributed under the Boost Software License Version 1.0 and the Apache
 // 2.0 License, at your option. See the `LICENSE-BOOST` and `LICENSE-APACHE` files in the
 // root of this repository for the full text of the licenses.
-// 
+//
 // --------------------------------------------------------------------------------------------
-// 
+//
 //  Distributed under the Boost Software License, Version 1.0.
 //    (See accompanying file LICENSE-BOOST or copy at
 //        https://www.boost.org/LICENSE_1_0.txt)
-// 
+//
 // --------------------------------------------------------------------------------------------
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
