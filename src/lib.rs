@@ -45,7 +45,7 @@
 //! fall back to the generic implementation.
 //!
 //! The primary use case for this crate is in geometry libraries. [`Double`] is intended
-//! to represent a single point, while [`Rect`] is intended to represent a rectangle.
+//! to represent a single point, while [`Quad`] is intended to represent a rectangle.
 //! However, it's likely that this crate will be useful in other areas as well.
 //!
 //! This crate is also `no_std`, allowing it to be used seamlessly on embedded platforms.
@@ -76,7 +76,14 @@
     missing_debug_implementations
 )]
 #![no_std]
-#![warn(clippy::pedantic)]
+#![warn(
+    clippy::pedantic,
+    clippy::style,
+    clippy::complexity,
+    clippy::cargo,
+    clippy::perf,
+    clippy::correctness
+)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(test)]
@@ -97,11 +104,15 @@ use core::fmt;
 use core::ops;
 
 /// A set of two values that may be SIMD optimized.
+/// 
+/// See the [crate-level documentation](crate) for more information.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[repr(transparent)]
 pub struct Double<T: Copy>(imp::Double<T>);
 
 /// A set of four values that may be SIMD optimized.
+/// 
+/// See the [crate-level documentation](crate) for more information.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[repr(transparent)]
 pub struct Quad<T: Copy>(imp::Quad<T>);
