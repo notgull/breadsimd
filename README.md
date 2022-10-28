@@ -21,6 +21,10 @@ b += Double::new([3, 4]);
 assert_eq!(b, Double::new([4, 6]));
 ```
 
+## Future Plans
+
+This crate will not release its 1.0.0 version until the `specialization` and `portable_simd` features in the standard library are stable.
+
 ## License
 
 This crate is dual licensed under the Boost Software License ([`LICENSE-BOOST`]) and the Apache 2.0 License ([`LICENSE-APACHE`]), at your option. See [`LICENSE-APACHE`] and [`LICENSE-BOOST`] for details.
