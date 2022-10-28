@@ -86,7 +86,7 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-#[cfg(test)]
+#[cfg(any(test, feature = "std"))]
 extern crate std;
 
 cfg_if::cfg_if! {
@@ -101,6 +101,7 @@ cfg_if::cfg_if! {
 }
 
 use core::fmt;
+use core::iter::{Product, Sum};
 use core::ops;
 
 /// A set of two values that may be SIMD optimized.
@@ -253,6 +254,47 @@ macro_rules! implementation {
             }
         }
 
+        impl<$gen: Copy + ops::Neg<Output = $gen>> ops::Neg for $name {
+            type Output = Self;
+
+            #[inline]
+            fn neg(self) -> Self::Output {
+                $self_ident(-self.0)
+            }
+        }
+
+        impl<$gen: Copy + ops::Shl<Output = $gen>> ops::Shl for $name {
+            type Output = Self;
+
+            #[inline]
+            fn shl(self, other: Self) -> Self::Output {
+                $self_ident(self.0 << other.0)
+            }
+        }
+
+        impl<$gen: Copy + ops::Shl<Output = $gen>> ops::ShlAssign for $name {
+            #[inline]
+            fn shl_assign(&mut self, other: Self) {
+                self.0 = self.0 << other.0;
+            }
+        }
+
+        impl<$gen: Copy + ops::Shr<Output = $gen>> ops::Shr for $name {
+            type Output = Self;
+
+            #[inline]
+            fn shr(self, other: Self) -> Self::Output {
+                $self_ident(self.0 >> other.0)
+            }
+        }
+
+        impl<$gen: Copy + ops::Shr<Output = $gen>> ops::ShrAssign for $name {
+            #[inline]
+            fn shr_assign(&mut self, other: Self) {
+                self.0 = self.0 >> other.0;
+            }
+        }
+
         impl<$gen: Copy> From<[$gen; $len]> for $name {
             #[inline]
             fn from(array: [$gen; $len]) -> Self {
@@ -276,11 +318,53 @@ macro_rules! implementation {
             }
         }
 
+        impl<$gen: Copy> AsRef<[$gen; $len]> for $name {
+            #[inline]
+            fn as_ref(&self) -> &[$gen; $len] {
+                self.0.as_ref()
+            }
+        }
+
+        impl<$gen: Copy> AsMut<[$gen; $len]> for $name {
+            #[inline]
+            fn as_mut(&mut self) -> &mut [$gen; $len] {
+                self.0.as_mut()
+            }
+        }
+
+        impl<$gen: Copy> AsRef<[$gen]> for $name {
+            #[inline]
+            fn as_ref(&self) -> &[$gen] {
+                self.0.as_ref()
+            }
+        }
+
+        impl<$gen: Copy> AsMut<[$gen]> for $name {
+            #[inline]
+            fn as_mut(&mut self) -> &mut [$gen] {
+                self.0.as_mut()
+            }
+        }
+
+        impl<$gen: num_traits::Zero + Copy + ops::Add<Output = $gen>> Sum for $name {
+            #[inline]
+            fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+                iter.fold($self_ident::splat($gen::zero()), ops::Add::add)
+            }
+        }
+
+        impl<$gen: num_traits::One + Copy + ops::Mul<Output = $gen>> Product for $name {
+            #[inline]
+            fn product<I: Iterator<Item = Self>>(iter: I) -> Self {
+                iter.fold($self_ident::splat($gen::one()), ops::Mul::mul)
+            }
+        }
+
         impl<$gen: Copy> $name {
             /// Create a new array from an array.
             #[inline]
             pub fn new(array: [$gen; $len]) -> Self {
-                $self_ident(array.into())
+                $self_ident(imp::$self_ident::new(array))
             }
 
             /// Create a new array populated with a single value in all lanes.
@@ -293,6 +377,67 @@ macro_rules! implementation {
             #[inline]
             pub fn into_inner(self) -> [$gen; $len] {
                 self.0.into_inner()
+            }
+        }
+
+        impl<$gen: num_traits::float::FloatCore> $name {
+            /// Get the absolute value of each lane.
+            #[must_use]
+            #[inline]
+            pub fn abs(self) -> Self {
+                $self_ident(self.0.abs())
+            }
+
+            /// Get the maximum of each lane.
+            #[must_use]
+            #[inline]
+            pub fn max(self, other: Self) -> Self {
+                $self_ident(self.0.max(other.0))
+            }
+
+            /// Get the minimum of each lane.
+            #[must_use]
+            #[inline]
+            pub fn min(self, other: Self) -> Self {
+                $self_ident(self.0.min(other.0))
+            }
+
+            /// Get the reciprocal of each lane.
+            #[must_use]
+            #[inline]
+            pub fn recip(self) -> Self {
+                $self_ident(self.0.recip())
+            }
+        }
+
+        #[cfg(any(feature = "std", feature = "libm"))]
+        impl<$gen: num_traits::Float> $name {
+            /// Get the floor of each lane.
+            #[must_use]
+            #[inline]
+            pub fn floor(self) -> Self {
+                $self_ident(self.0.floor())
+            }
+
+            /// Get the ceiling of each lane.
+            #[must_use]
+            #[inline]
+            pub fn ceil(self) -> Self {
+                $self_ident(self.0.ceil())
+            }
+
+            /// Round each lane to the nearest integer.
+            #[must_use]
+            #[inline]
+            pub fn round(self) -> Self {
+                $self_ident(self.0.round())
+            }
+
+            /// Get the square root of each lane.
+            #[must_use]
+            #[inline]
+            pub fn sqrt(self) -> Self {
+                $self_ident(self.0.sqrt())
             }
         }
     };

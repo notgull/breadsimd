@@ -25,6 +25,9 @@ jobs:
       - name: Install Rust
         run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
       - run: cargo build --all --all-features --all-targets
+      - run: cargo test --all-features
+      - run: cargo test --no-default-features
+      - run: cargo test --no-default-features --features libm
       - name: Run cargo check (without dev-dependencies to catch missing feature flags)
         if: startsWith(matrix.rust, 'nightly')
         run: cargo check -Z features=dev_dep

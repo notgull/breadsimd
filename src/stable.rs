@@ -36,6 +36,8 @@ use core::fmt;
 use core::hash;
 use core::ops;
 
+use num_traits::float::FloatCore;
+
 /// A set of two values.
 #[derive(Copy, Clone)]
 #[repr(transparent)]
@@ -49,7 +51,7 @@ pub(crate) struct Quad<T>(pub(crate) [T; 4]);
 /// A wrapper around arrays that lets us map from one type to another.
 ///
 /// Makes it easier to construct the macro below.
-trait Foldable<T, O> {
+pub(crate) trait Foldable<T, O> {
     /// The type of the output array.
     type OutputArray;
 
@@ -208,6 +210,30 @@ macro_rules! implementation {
             }
         }
 
+        impl<$gen: ops::Neg> ops::Neg for $name {
+            type Output = $self_ident < $gen::Output >;
+
+            fn neg(self) -> Self::Output {
+                $self_ident (self.0.fold(|a| -a))
+            }
+        }
+
+        impl<$gen: ops::Shl> ops::Shl for $name {
+            type Output = $self_ident < $gen::Output >;
+
+            fn shl(self, rhs: Self) -> Self::Output {
+                $self_ident (self.0.fold2(rhs.0, |a, b| a << b))
+            }
+        }
+
+        impl<$gen: ops::Shr> ops::Shr for $name {
+            type Output = $self_ident < $gen::Output >;
+
+            fn shr(self, rhs: Self) -> Self::Output {
+                $self_ident (self.0.fold2(rhs.0, |a, b| a >> b))
+            }
+        }
+
         impl<$gen> From<[$gen; $len]> for $name {
             fn from(array: [$gen; $len]) -> Self {
                 $self_ident(array)
@@ -237,7 +263,37 @@ macro_rules! implementation {
             }
         }
 
+        impl<$gen> AsRef<[$gen; $len]> for $name {
+            fn as_ref(&self) -> &[$gen; $len] {
+                &self.0
+            }
+        }
+
+        impl<$gen> AsRef<[$gen]> for $name {
+            fn as_ref(&self) -> &[$gen] {
+                &self.0
+            }
+        }
+
+        impl<$gen> AsMut<[$gen; $len]> for $name {
+            fn as_mut(&mut self) -> &mut [$gen; $len] {
+                &mut self.0
+            }
+        }
+
+        impl<$gen> AsMut<[$gen]> for $name {
+            fn as_mut(&mut self) -> &mut [$gen] {
+                &mut self.0
+            }
+        }
+
         impl<$gen> $name {
+            /// Create a new array.
+            #[inline]
+            pub(crate) fn new(array: [$gen; $len]) -> Self {
+                $self_ident(array)
+            }
+
             /// Get the underlying array.
             pub(crate) fn into_inner(self) -> [$gen; $len] {
                 self.0
@@ -252,6 +308,51 @@ macro_rules! implementation {
                     const _FOR_EACH_ITEM: &str = stringify!($index);
                     value.clone()
                 }),*])
+            }
+        }
+
+        impl<$gen: FloatCore> $name {
+            /// Get the absolute value of this array.
+            pub(crate) fn abs(self) -> Self {
+                $self_ident(self.0.fold(|a| a.abs()))
+            }
+
+            /// Find the reciprocal of this array.
+            pub(crate) fn recip(self) -> Self {
+                $self_ident(self.0.fold(|a| a.recip()))
+            }
+
+            /// Find the minimum of this array and another.
+            pub(crate) fn min(self, other: Self) -> Self {
+                $self_ident(self.0.fold2(other.0, |a, b| a.min(b)))
+            }
+
+            /// Find the maximum of this array and another.
+            pub(crate) fn max(self, other: Self) -> Self {
+                $self_ident(self.0.fold2(other.0, |a, b| a.max(b)))
+            }
+        }
+
+        #[cfg(any(feature = "std", feature = "libm"))]
+        impl<$gen: num_traits::Float> $name {
+            /// Find the square root of this array.
+            pub(crate) fn sqrt(self) -> Self {
+                $self_ident(self.0.fold(|a| a.sqrt()))
+            }
+
+            /// Find the floor of this array.
+            pub(crate) fn floor(self) -> Self {
+                $self_ident(self.0.fold(|a| a.floor()))
+            }
+
+            /// Find the ceiling of this array.
+            pub(crate) fn ceil(self) -> Self {
+                $self_ident(self.0.fold(|a| a.ceil()))
+            }
+
+            /// Find the round of this array.
+            pub(crate) fn round(self) -> Self {
+                $self_ident(self.0.fold(|a| a.round()))
             }
         }
     }
