@@ -28,12 +28,13 @@ use core::cmp;
 use core::fmt;
 use core::hash::{self, Hash};
 use core::ops;
-use core::simd::{Simd, SimdFloat};
+use core::simd::{Simd, SimdFloat, SimdInt};
 
-#[cfg(all(feature = "libm", not(feature = "std")))]
+#[cfg(not(feature = "std"))]
 use naive::Foldable;
-#[cfg(all(feature = "libm", not(feature = "std")))]
-use num_traits::Float;
+use num_traits::Signed;
+use num_traits::real::Real;
+
 #[cfg(feature = "std")]
 use std::simd::StdFloat;
 
@@ -120,7 +121,7 @@ macro_rules! implementation {
             cfg_if::cfg_if! {
                 if #[cfg(feature = "std")] {
                     return $struct_name($self.$function());
-                } else if #[cfg(feature = "libm")] {
+                } else {
                     let array = $self.gen_into_inner();
                     return $struct_name(Self::gen_new(
                         array.fold(|item| item.$function())
@@ -144,6 +145,22 @@ macro_rules! implementation {
         $($tt:tt)*
     ) => {
         unreachable!()
+    };
+    (
+        @match_float
+        is_float,
+        $float_expr:expr,
+        $not_float_expr:expr
+    ) => {
+        $float_expr
+    };
+    (
+        @match_float
+        not_float,
+        $float_expr:expr,
+        $not_float_expr:expr
+    ) => {
+        $not_float_expr
     };
     // Emits optimized implementations for SIMD.
     (
@@ -294,8 +311,8 @@ macro_rules! implementation {
 
             fn gen_abs(self) -> $struct_name<$ty> {
                 implementation!(
-                    @if_float
-                    $is_float,
+                    @not_if_unsigned
+                    $is_signed,
                     $struct_name(self.abs())
                 )
             }
@@ -324,7 +341,6 @@ macro_rules! implementation {
                 )
             }
 
-            #[cfg(any(feature = "std", feature = "libm"))]
             fn gen_floor(self) -> $struct_name<$ty> {
                 implementation!(
                     @if_float
@@ -333,7 +349,6 @@ macro_rules! implementation {
                 )
             }
 
-            #[cfg(any(feature = "std", feature = "libm"))]
             fn gen_ceil(self) -> $struct_name<$ty> {
                 implementation!(
                     @if_float
@@ -342,7 +357,6 @@ macro_rules! implementation {
                 )
             }
 
-            #[cfg(any(feature = "std", feature = "libm"))]
             fn gen_round(self) -> $struct_name<$ty> {
                 implementation!(
                     @if_float
@@ -351,7 +365,6 @@ macro_rules! implementation {
                 )
             }
 
-            #[cfg(any(feature = "libm", feature = "std"))]
             fn gen_sqrt(self) -> $struct_name<$ty> {
                 implementation!(
                     @if_float
@@ -459,39 +472,35 @@ macro_rules! implementation {
 
             fn gen_abs(self) -> $struct_name<$gen>
             where
-                $gen: num_traits::float::FloatCore;
+                $gen: Signed;
 
             fn gen_recip(self) -> $struct_name<$gen>
             where
-                $gen: num_traits::float::FloatCore;
+                $gen: Real;
 
             fn gen_min(self, other: Self) -> $struct_name<$gen>
             where
-                $gen: num_traits::float::FloatCore;
+                $gen: Real;
 
             fn gen_max(self, other: Self) -> $struct_name<$gen>
             where
-                $gen: num_traits::float::FloatCore;
+                $gen: Real;
 
-            #[cfg(any(feature = "libm", feature = "std"))]
             fn gen_floor(self) -> $struct_name<$gen>
             where
-                $gen: num_traits::Float;
+                $gen: Real;
 
-            #[cfg(any(feature = "libm", feature = "std"))]
             fn gen_ceil(self) -> $struct_name<$gen>
             where
-                $gen: num_traits::Float;
+                $gen: Real;
 
-            #[cfg(any(feature = "libm", feature = "std"))]
             fn gen_round(self) -> $struct_name<$gen>
             where
-                $gen: num_traits::Float;
+                $gen: Real;
 
-            #[cfg(any(feature = "std", feature = "libm"))]
             fn gen_sqrt(self) -> $struct_name<$gen>
             where
-                $gen: num_traits::Float;
+                $gen: Real;
         }
 
         impl<$gen: Copy> $trait_name<$gen> for naive::$struct_name<$gen> {
@@ -659,7 +668,7 @@ macro_rules! implementation {
             #[inline]
             fn gen_abs(self) -> $struct_name<$gen>
             where
-                $gen: num_traits::float::FloatCore,
+                $gen: Signed,
             {
                 $struct_name(self.abs().into())
             }
@@ -667,7 +676,7 @@ macro_rules! implementation {
             #[inline]
             fn gen_recip(self) -> $struct_name<$gen>
             where
-                $gen: num_traits::float::FloatCore,
+                $gen: Real,
             {
                 $struct_name(self.recip().into())
             }
@@ -675,7 +684,7 @@ macro_rules! implementation {
             #[inline]
             fn gen_min(self, other: Self) -> $struct_name<$gen>
             where
-                $gen: num_traits::float::FloatCore,
+                $gen: Real,
             {
                 $struct_name(self.min(other).into())
             }
@@ -683,43 +692,39 @@ macro_rules! implementation {
             #[inline]
             fn gen_max(self, other: Self) -> $struct_name<$gen>
             where
-                $gen: num_traits::float::FloatCore,
+                $gen: Real,
             {
                 $struct_name(self.max(other).into())
             }
 
             #[inline]
-            #[cfg(any(feature = "std", feature = "libm"))]
             fn gen_floor(self) -> $struct_name<$gen>
             where
-                $gen: num_traits::Float,
+                $gen: Real,
             {
                 $struct_name(self.floor().into())
             }
 
             #[inline]
-            #[cfg(any(feature = "std", feature = "libm"))]
             fn gen_ceil(self) -> $struct_name<$gen>
             where
-                $gen: num_traits::Float,
+                $gen: Real,
             {
                 $struct_name(self.ceil().into())
             }
 
             #[inline]
-            #[cfg(any(feature = "std", feature = "libm"))]
             fn gen_round(self) -> $struct_name<$gen>
             where
-                $gen: num_traits::Float,
+                $gen: Real,
             {
                 $struct_name(self.round().into())
             }
 
             #[inline]
-            #[cfg(any(feature = "std", feature = "libm"))]
             fn gen_sqrt(self) -> $struct_name<$gen>
             where
-                $gen: num_traits::Float,
+                $gen: Real,
             {
                 $struct_name(self.sqrt().into())
             }
@@ -928,11 +933,13 @@ macro_rules! implementation {
             }
         }
 
-        impl<$gen: num_traits::float::FloatCore> $struct_name<$gen> {
+        impl<$gen: Copy + Signed> $struct_name<$gen> {
             pub(crate) fn abs(self) -> Self {
                 self.0.gen_abs()
             }
+        }
 
+        impl<$gen: Real> $struct_name<$gen> {
             pub(crate) fn min(self, other: Self) -> Self {
                 self.0.gen_min(other.0)
             }
@@ -944,10 +951,7 @@ macro_rules! implementation {
             pub(crate) fn recip(self) -> Self {
                 self.0.gen_recip()
             }
-        }
 
-        #[cfg(any(feature = "libm", feature = "std"))]
-        impl<$gen: num_traits::Float> $struct_name<$gen> {
             pub(crate) fn sqrt(self) -> Self {
                 self.0.gen_sqrt()
             }

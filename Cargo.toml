@@ -16,9 +16,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 cfg-if = "1.0.0"
-num-traits = { version = "0.2.15", default-features = false }
+num-traits = { version = "0.2.15", default-features = false, features = ["libm"] }
 
 [features]
 default = ["std"]
 std = ["num-traits/std"]
-libm = ["num-traits/libm"]

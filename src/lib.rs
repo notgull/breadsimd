@@ -66,6 +66,13 @@
 //! b += Double::new([3, 4]);
 //! assert_eq!(b, Double::new([4, 6]));
 //! ```
+//! 
+//! # Features
+//! 
+//! This crate has an `std` feature enabled by default, which enables the `std` library.
+//! By disabling this feature, `libstd` will not be used, and this crate will be `no_std`.
+//! The API will not be changed; however, functions like `sqrt()` will fall back to a 
+//! significantly slower implementation.
 
 #![cfg_attr(not(breadsimd_no_nightly), allow(incomplete_features))]
 #![cfg_attr(not(breadsimd_no_nightly), feature(portable_simd, specialization))]
@@ -103,6 +110,11 @@ cfg_if::cfg_if! {
 use core::fmt;
 use core::iter::{Product, Sum};
 use core::ops;
+
+use num_traits::Signed;
+
+#[cfg(feature = "std")]
+use num_traits::real::Real;
 
 /// A set of two values that may be SIMD optimized.
 ///
@@ -380,14 +392,16 @@ macro_rules! implementation {
             }
         }
 
-        impl<$gen: num_traits::float::FloatCore> $name {
+        impl<$gen: Copy + Signed> $name {
             /// Get the absolute value of each lane.
             #[must_use]
             #[inline]
             pub fn abs(self) -> Self {
                 $self_ident(self.0.abs())
             }
+        }
 
+        impl<$gen: Copy + Real> $name {
             /// Get the maximum of each lane.
             #[must_use]
             #[inline]
@@ -408,10 +422,7 @@ macro_rules! implementation {
             pub fn recip(self) -> Self {
                 $self_ident(self.0.recip())
             }
-        }
 
-        #[cfg(any(feature = "std", feature = "libm"))]
-        impl<$gen: num_traits::Float> $name {
             /// Get the floor of each lane.
             #[must_use]
             #[inline]

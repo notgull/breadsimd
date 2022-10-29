@@ -36,7 +36,8 @@ use core::fmt;
 use core::hash;
 use core::ops;
 
-use num_traits::float::FloatCore;
+use num_traits::Signed;
+use num_traits::real::Real;
 
 /// A set of two values.
 #[derive(Copy, Clone)]
@@ -311,12 +312,14 @@ macro_rules! implementation {
             }
         }
 
-        impl<$gen: FloatCore> $name {
+        impl<$gen: Signed> $name {
             /// Get the absolute value of this array.
             pub(crate) fn abs(self) -> Self {
                 $self_ident(self.0.fold(|a| a.abs()))
             }
+        }
 
+        impl<$gen: Real> $name {
             /// Find the reciprocal of this array.
             pub(crate) fn recip(self) -> Self {
                 $self_ident(self.0.fold(|a| a.recip()))
@@ -331,10 +334,7 @@ macro_rules! implementation {
             pub(crate) fn max(self, other: Self) -> Self {
                 $self_ident(self.0.fold2(other.0, |a, b| a.max(b)))
             }
-        }
 
-        #[cfg(any(feature = "std", feature = "libm"))]
-        impl<$gen: num_traits::Float> $name {
             /// Find the square root of this array.
             pub(crate) fn sqrt(self) -> Self {
                 $self_ident(self.0.fold(|a| a.sqrt()))
