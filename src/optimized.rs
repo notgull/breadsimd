@@ -28,7 +28,7 @@ use core::cmp;
 use core::fmt;
 use core::hash::{self, Hash};
 use core::ops;
-use core::simd::{Simd, SimdFloat, SimdInt};
+use core::simd::{Simd, SimdFloat, SimdInt, SimdOrd};
 
 #[cfg(not(feature = "std"))]
 use naive::Foldable;
@@ -325,20 +325,12 @@ macro_rules! implementation {
                 )
             }
 
-            fn gen_min(self, _other: Self) -> $struct_name<$ty> {
-                implementation!(
-                    @if_float
-                    $is_float,
-                    $struct_name(self.simd_min(_other))
-                )
+            fn gen_min(self, other: Self) -> $struct_name<$ty> {
+                $struct_name(self.simd_min(other))
             }
 
             fn gen_max(self, _other: Self) -> $struct_name<$ty> {
-                implementation!(
-                    @if_float
-                    $is_float,
-                    $struct_name(self.simd_max(_other))
-                )
+                $struct_name(self.simd_max(_other))
             }
 
             fn gen_floor(self) -> $struct_name<$ty> {
@@ -480,11 +472,11 @@ macro_rules! implementation {
 
             fn gen_min(self, other: Self) -> $struct_name<$gen>
             where
-                $gen: Real;
+                $gen: PartialOrd;
 
             fn gen_max(self, other: Self) -> $struct_name<$gen>
             where
-                $gen: Real;
+                $gen: PartialOrd;
 
             fn gen_floor(self) -> $struct_name<$gen>
             where
@@ -684,7 +676,7 @@ macro_rules! implementation {
             #[inline]
             fn gen_min(self, other: Self) -> $struct_name<$gen>
             where
-                $gen: Real,
+                $gen: PartialOrd,
             {
                 $struct_name(self.min(other).into())
             }
@@ -692,7 +684,7 @@ macro_rules! implementation {
             #[inline]
             fn gen_max(self, other: Self) -> $struct_name<$gen>
             where
-                $gen: Real,
+                $gen: PartialOrd,
             {
                 $struct_name(self.max(other).into())
             }
@@ -939,15 +931,17 @@ macro_rules! implementation {
             }
         }
 
-        impl<$gen: Real> $struct_name<$gen> {
-            pub(crate) fn min(self, other: Self) -> Self {
-                self.0.gen_min(other.0)
-            }
-
+        impl<$gen: Copy + PartialOrd> $struct_name<$gen> {
             pub(crate) fn max(self, other: Self) -> Self {
                 self.0.gen_max(other.0)
             }
 
+            pub(crate) fn min(self, other: Self) -> Self {
+                self.0.gen_min(other.0)
+            }
+        }
+
+        impl<$gen: Real> $struct_name<$gen> {
             pub(crate) fn recip(self) -> Self {
                 self.0.gen_recip()
             }

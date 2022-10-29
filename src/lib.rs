@@ -399,14 +399,7 @@ macro_rules! implementation {
             }
         }
 
-        impl<$gen: Copy + Real> $name {
-            /// Get the maximum of each lane.
-            #[must_use]
-            #[inline]
-            pub fn max(self, other: Self) -> Self {
-                $self_ident(self.0.max(other.0))
-            }
-
+        impl<$gen: Copy + PartialOrd> $name {
             /// Get the minimum of each lane.
             #[must_use]
             #[inline]
@@ -414,6 +407,15 @@ macro_rules! implementation {
                 $self_ident(self.0.min(other.0))
             }
 
+            /// Get the maximum of each lane.
+            #[must_use]
+            #[inline]
+            pub fn max(self, other: Self) -> Self {
+                $self_ident(self.0.max(other.0))
+            }
+        }
+
+        impl<$gen: Copy + Real> $name {
             /// Get the reciprocal of each lane.
             #[must_use]
             #[inline]

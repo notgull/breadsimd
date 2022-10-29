@@ -319,20 +319,22 @@ macro_rules! implementation {
             }
         }
 
-        impl<$gen: Real> $name {
-            /// Find the reciprocal of this array.
-            pub(crate) fn recip(self) -> Self {
-                $self_ident(self.0.fold(|a| a.recip()))
-            }
-
+        impl<$gen: PartialOrd> $name {
             /// Find the minimum of this array and another.
             pub(crate) fn min(self, other: Self) -> Self {
-                $self_ident(self.0.fold2(other.0, |a, b| a.min(b)))
+                $self_ident(self.0.fold2(other.0, |a, b| min(a, b)))
             }
 
             /// Find the maximum of this array and another.
             pub(crate) fn max(self, other: Self) -> Self {
-                $self_ident(self.0.fold2(other.0, |a, b| a.max(b)))
+                $self_ident(self.0.fold2(other.0, |a, b| max(a, b)))
+            }
+        }
+
+        impl<$gen: Real> $name {
+            /// Find the reciprocal of this array.
+            pub(crate) fn recip(self) -> Self {
+                $self_ident(self.0.fold(|a| a.recip()))
             }
 
             /// Find the square root of this array.
@@ -372,4 +374,24 @@ implementation! {
     Quad,
     4,
     [0, 1, 2, 3]
+}
+
+/// PartialOrd-compatible implementation of `min`.
+#[inline]
+pub(crate) fn min<T: PartialOrd>(a: T, b: T) -> T {
+    if a < b {
+        a
+    } else {
+        b
+    }
+}
+
+/// PartialOrd-compatible implementation of `max`.
+#[inline]
+pub(crate) fn max<T: PartialOrd>(a: T, b: T) -> T {
+    if a > b {
+        a
+    } else {
+        b
+    }
 }
