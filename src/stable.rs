@@ -36,8 +36,8 @@ use core::fmt;
 use core::hash;
 use core::ops;
 
-use num_traits::Signed;
 use num_traits::real::Real;
+use num_traits::Signed;
 
 /// A set of two values.
 #[derive(Copy, Clone)]

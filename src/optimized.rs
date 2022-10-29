@@ -32,8 +32,8 @@ use core::simd::{Simd, SimdFloat, SimdInt};
 
 #[cfg(not(feature = "std"))]
 use naive::Foldable;
-use num_traits::Signed;
 use num_traits::real::Real;
+use num_traits::Signed;
 
 #[cfg(feature = "std")]
 use std::simd::StdFloat;

@@ -66,12 +66,12 @@
 //! b += Double::new([3, 4]);
 //! assert_eq!(b, Double::new([4, 6]));
 //! ```
-//! 
+//!
 //! # Features
-//! 
+//!
 //! This crate has an `std` feature enabled by default, which enables the `std` library.
 //! By disabling this feature, `libstd` will not be used, and this crate will be `no_std`.
-//! The API will not be changed; however, functions like `sqrt()` will fall back to a 
+//! The API will not be changed; however, functions like `sqrt()` will fall back to a
 //! significantly slower implementation.
 
 #![cfg_attr(not(breadsimd_no_nightly), allow(incomplete_features))]
@@ -111,10 +111,8 @@ use core::fmt;
 use core::iter::{Product, Sum};
 use core::ops;
 
-use num_traits::Signed;
-
-#[cfg(feature = "std")]
 use num_traits::real::Real;
+use num_traits::Signed;
 
 /// A set of two values that may be SIMD optimized.
 ///
