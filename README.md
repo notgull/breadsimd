@@ -2,7 +2,7 @@
 
 `breadsimd` is a library for SIMD (Single Instruction Multiple Data) operations on arrays of number values. The main idea with `breadsimd` is that, in Rust, it should be possible to have your cake and eat it, too. Types in `breadsimd` are generic over the type, meaning that they can contain any number value. However, using specialization, `breadsimd` can also provide optimized implementations for specific types, such as `f32` and `i64`.
 
-At compile time, `breadsimd` detects whether it is being compiled with a Nightly compiler or not. If so, it enables SIMD optimizations, through the currently-unstable `portable-simd` and `specialization` features. If not, it falls back to a naive implementation.
+If the unstable-exclusive `nightly` feature is enabled, the crate enables SIMD optimizations, through the currently-unstable `portable-simd` and `specialization` features. If not, it falls back to a naive implementation.
 
 ## Usage
 
@@ -20,6 +20,20 @@ let mut b = Double::<u32>::new([1, 2]);
 b += Double::new([3, 4]);
 assert_eq!(b, Double::new([4, 6]));
 ```
+
+## Features
+
+* `std` (enabled by default) - Enables the usage of `libstd` within `breadsimd`. This does not affect the external API, but implements `sqrt` in a more efficient way.
+* `nightly` (requires a nightly compiler) - Enables certain generic types to be replaced with SIMD primitives. This is currently only supported on nightly, as it requires the `portable-simd` and `specialization` features.
+* `bytemuck` - Implements `bytemuck::Pod` and `bytemuck::Zeroable` for `Double` and `Quad`.
+
+## Dependency Justification
+
+**Legend:** *Italics* indicate an optional dependency, while **bold** indicates a public dependency.
+
+* ***`bytemuck`*** (version 1.12 or later) - Provides `Pod` and `Zeroable` implementations for `Double` and `Quad`. This is only enabled when the `bytemuck` feature is enabled.
+* `cfg-if` (version 1.0 or later) - Provides `cfg_if!` macro, which is used to conditionally compile code based on the `nightly` feature.
+* **`num-traits`** (version 0.2 or later) - Provides numerical traits like `Real` or `Signed`, which provide for generic functionality over number types.
 
 ## Future Plans
 

@@ -28,7 +28,7 @@ use core::cmp;
 use core::fmt;
 use core::hash::{self, Hash};
 use core::ops;
-use core::simd::{Simd, SimdFloat, SimdInt, SimdOrd};
+use core::simd::{Simd, SimdFloat, SimdInt, SimdOrd, SimdPartialEq, SimdPartialOrd, Mask};
 
 #[cfg(not(feature = "std"))]
 use naive::Foldable;
@@ -167,14 +167,18 @@ macro_rules! implementation {
         @simd_impl
         $len:expr,
         $struct_name:ident,
+        $mask_name:ident,
         $trait_name:ident,
+        $trait_mask_name:ident,
     ) => {};
     (
         @simd_impl
         $len:expr,
         $struct_name:ident,
+        $mask_name:ident,
         $trait_name:ident,
-        ($ty:ty,$is_float:ident,$is_signed:ident)
+        $trait_mask_name:ident,
+        ($ty:ty,$mask_ty:ty,$is_float:ident,$is_signed:ident)
         $($rest:tt)*
     ) => {
         impl From<naive::$struct_name<$ty>> for Simd<$ty, $len> {
@@ -185,6 +189,8 @@ macro_rules! implementation {
         }
 
         impl $trait_name<$ty> for Simd<$ty, $len> {
+            type EqMask = Mask<$mask_ty, $len>;
+
             fn gen_new(array: [$ty; $len]) -> Self {
                 Self::from_array(array)
             }
@@ -285,6 +291,30 @@ macro_rules! implementation {
                 self == other
             }
 
+            fn gen_packed_eq(self, other: Self) -> Self::EqMask {
+                self.simd_eq(other)
+            }
+            
+            fn gen_packed_ne(self, other: Self) -> Self::EqMask {
+                self.simd_ne(other)
+            }
+
+            fn gen_packed_gt(self, other: Self) -> Self::EqMask {
+                self.simd_gt(other)
+            }
+
+            fn gen_packed_lt(self, other: Self) -> Self::EqMask {
+                self.simd_lt(other)
+            }
+
+            fn gen_packed_ge(self, other: Self) -> Self::EqMask {
+                self.simd_ge(other)
+            }
+
+            fn gen_packed_le(self, other: Self) -> Self::EqMask {
+                self.simd_le(other)
+            }
+
             fn gen_partial_ord(self, other: Self) -> Option<cmp::Ordering> {
                 self.partial_cmp(&other)
             }
@@ -333,6 +363,10 @@ macro_rules! implementation {
                 $struct_name(self.simd_max(_other))
             }
 
+            fn gen_clamp(self, min: Self, max: Self) -> $struct_name<$ty> {
+                $struct_name(self.simd_clamp(min, max))
+            }
+
             fn gen_floor(self) -> $struct_name<$ty> {
                 implementation!(
                     @if_float
@@ -366,11 +400,81 @@ macro_rules! implementation {
             }
         }
 
+        impl From<naive::$mask_name<$ty>> for Mask<$mask_ty, $len> {
+            fn from(other: naive::$mask_name<$ty>) -> Self {
+                Self::from_array(other.into_array())
+            }
+        }
+
+        impl $trait_mask_name<$ty> for Mask<$mask_ty, $len> {
+            fn gen_new(array: [bool; $len]) -> Self {
+                Self::from_array(array)
+            }
+
+            fn gen_splat(value: bool) -> Self {
+                Self::splat(value)
+            }
+
+            fn gen_into_inner(self) -> [bool; $len] {
+                self.to_array()
+            }
+
+            fn gen_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                fmt::Debug::fmt(self, f)
+            }
+
+            fn gen_partial_eq(&self, other: &Self) -> bool {
+                self == other
+            }
+
+            fn gen_partial_ord(&self, other: &Self) -> Option<cmp::Ordering> {
+                self.partial_cmp(&other)
+            }
+
+            fn gen_default() -> Self {
+                Self::default()
+            }
+
+            fn gen_bitand(self, other: Self) -> Self {
+                self & other
+            }
+
+            fn gen_bitor(self, other: Self) -> Self {
+                self | other
+            }
+
+            fn gen_bitxor(self, other: Self) -> Self {
+                self ^ other
+            }
+
+            fn gen_not(self) -> Self {
+                !self
+            }
+
+            fn gen_any(self) -> bool {
+                self.any()
+            }
+
+            fn gen_all(self) -> bool {
+                self.all()
+            }
+
+            fn gen_test(self, index: usize) -> bool {
+                self.test(index)
+            }
+
+            fn gen_set(&mut self, index: usize, value: bool) {
+                self.set(index, value);
+            }
+        }
+
         implementation! {
             @simd_impl
             $len,
             $struct_name,
+            $mask_name,
             $trait_name,
+            $trait_mask_name,
             $($rest)*
         }
     };
@@ -379,11 +483,16 @@ macro_rules! implementation {
         $gen:ident,
         $len:expr,
         $struct_name:ident,
+        $mask_name:ident,
         $trait_name:ident,
+        $trait_mask_name:ident,
         $assoc_name:ident,
     ) => {
         #[derive(Copy, Clone)]
         pub(crate) struct $struct_name<$gen: Copy>(<$gen as MaybeSimd>::$assoc_name);
+
+        #[derive(Copy, Clone)]
+        pub(crate) struct $mask_name<$gen: Copy>(<<$gen as MaybeSimd>::$assoc_name as $trait_name<$gen>>::EqMask);
 
         /// A trait wrapper that makes it easier to call trait functions when applicable.
         ///
@@ -396,6 +505,9 @@ macro_rules! implementation {
              + AsMut<[$gen; $len]>
              + From<naive::$struct_name<$gen>>
         {
+            /// The mask type for this type.
+            type EqMask: $trait_mask_name<$gen>;
+
             fn gen_new(array: [$gen; $len]) -> Self;
             fn gen_splat(value: $gen) -> Self;
             fn gen_into_inner(self) -> [$gen; $len];
@@ -446,9 +558,29 @@ macro_rules! implementation {
 
             fn gen_index(&self, index: usize) -> &$gen;
             fn gen_index_mut(&mut self, index: usize) -> &mut $gen;
+
             fn gen_partial_eq(self, other: Self) -> bool
             where
                 $gen: PartialEq;
+            fn gen_packed_eq(self, other: Self) -> Self::EqMask
+            where
+                $gen: PartialEq;
+            fn gen_packed_ne(self, other: Self) -> Self::EqMask
+            where
+                $gen: PartialEq;
+            fn gen_packed_gt(self, other: Self) -> Self::EqMask
+            where
+                $gen: PartialOrd;
+            fn gen_packed_lt(self, other: Self) -> Self::EqMask
+            where
+                $gen: PartialOrd;
+            fn gen_packed_ge(self, other: Self) -> Self::EqMask
+            where
+                $gen: PartialOrd;
+            fn gen_packed_le(self, other: Self) -> Self::EqMask
+            where
+                $gen: PartialOrd;
+
             fn gen_partial_ord(self, other: Self) -> Option<cmp::Ordering>
             where
                 $gen: PartialOrd;
@@ -477,7 +609,11 @@ macro_rules! implementation {
             fn gen_max(self, other: Self) -> $struct_name<$gen>
             where
                 $gen: PartialOrd;
-
+            
+            fn gen_clamp(self, min: Self, max: Self) -> $struct_name<$gen>
+            where
+                $gen: PartialOrd;
+             
             fn gen_floor(self) -> $struct_name<$gen>
             where
                 $gen: Real;
@@ -495,7 +631,32 @@ macro_rules! implementation {
                 $gen: Real;
         }
 
+        /// A trait wrapper for masks.
+        trait $trait_mask_name<$gen: Copy> :
+            Copy
+             + Sized
+             + From<naive::$mask_name<$gen>>
+        {
+            fn gen_new(array: [bool; $len]) -> Self;
+            fn gen_splat(value: bool) -> Self;
+            fn gen_into_inner(self) -> [bool; $len];
+            fn gen_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
+            fn gen_partial_eq(&self, other: &Self) -> bool;
+            fn gen_partial_ord(&self, other: &Self) -> Option<cmp::Ordering>;
+            fn gen_default() -> Self;
+            fn gen_bitand(self, other: Self) -> Self;
+            fn gen_bitor(self, other: Self) -> Self;
+            fn gen_bitxor(self, other: Self) -> Self;
+            fn gen_not(self) -> Self;
+            fn gen_any(self) -> bool;
+            fn gen_all(self) -> bool;
+            fn gen_test(self, index: usize) -> bool;
+            fn gen_set(&mut self, index: usize, value: bool);
+        }
+
         impl<$gen: Copy> $trait_name<$gen> for naive::$struct_name<$gen> {
+            type EqMask = naive::$mask_name<$gen>;
+
             #[inline]
             fn gen_new(array: [$gen; $len]) -> Self {
                 naive::$struct_name::new(array)
@@ -626,6 +787,54 @@ macro_rules! implementation {
             }
 
             #[inline]
+            fn gen_packed_eq(self, other: Self) -> Self::EqMask
+            where
+                $gen: PartialEq,
+            {
+                self.packed_eq(other)
+            }
+
+            #[inline]
+            fn gen_packed_ne(self, other: Self) -> Self::EqMask
+            where
+                $gen: PartialEq,
+            {
+                self.packed_ne(other)
+            }
+
+            #[inline]
+            fn gen_packed_lt(self, other: Self) -> Self::EqMask
+            where
+                $gen: PartialOrd,
+            {
+                self.packed_lt(other)
+            }
+
+            #[inline]
+            fn gen_packed_le(self, other: Self) -> Self::EqMask
+            where
+                $gen: PartialOrd,
+            {
+                self.packed_le(other)
+            }
+
+            #[inline]
+            fn gen_packed_gt(self, other: Self) -> Self::EqMask
+            where
+                $gen: PartialOrd,
+            {
+                self.packed_gt(other)
+            }
+
+            #[inline]
+            fn gen_packed_ge(self, other: Self) -> Self::EqMask
+            where
+                $gen: PartialOrd,
+            {
+                self.packed_ge(other)
+            }
+
+            #[inline]
             fn gen_partial_ord(self, other: Self) -> Option<cmp::Ordering>
             where
                 $gen: PartialOrd,
@@ -690,6 +899,14 @@ macro_rules! implementation {
             }
 
             #[inline]
+            fn gen_clamp(self, min: Self, max: Self) -> $struct_name<$gen>
+            where 
+                $gen: PartialOrd
+            {
+                $struct_name(self.clamp(min, max).into())
+            }
+
+            #[inline]
             fn gen_floor(self) -> $struct_name<$gen>
             where
                 $gen: Real,
@@ -722,23 +939,102 @@ macro_rules! implementation {
             }
         }
 
+        impl<$gen: Copy> $trait_mask_name<$gen> for naive::$mask_name<$gen> {
+            #[inline]
+            fn gen_new(array: [bool; $len]) -> Self {
+                Self::from_array(array)
+            }
+
+            #[inline]
+            fn gen_splat(value: bool) -> Self {
+                Self::splat(value)
+            }
+            
+            #[inline]
+            fn gen_into_inner(self) -> [bool; $len] {
+                self.into_array()
+            }
+
+            #[inline]
+            fn gen_fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                fmt::Debug::fmt(self, f)
+            }
+
+            #[inline]
+            fn gen_partial_eq(&self, other: &Self) -> bool {
+                *self == *other
+            }
+
+            #[inline]
+            fn gen_partial_ord(&self, other: &Self) -> Option<cmp::Ordering> {
+                self.partial_cmp(other)
+            }
+
+            #[inline]
+            fn gen_default() -> Self {
+                Self::default()
+            }
+
+            #[inline]
+            fn gen_bitand(self, other: Self) -> Self {
+                self & other
+            }
+
+            #[inline]
+            fn gen_bitor(self, other: Self) -> Self {
+                self | other
+            }
+
+            #[inline]
+            fn gen_bitxor(self, other: Self) -> Self {
+                self ^ other
+            }
+
+            #[inline]
+            fn gen_not(self) -> Self {
+                !self
+            }
+
+            #[inline]
+            fn gen_any(self) -> bool {
+                self.any()
+            }
+
+            #[inline]
+            fn gen_all(self) -> bool {
+                self.all()
+            }
+
+            #[inline]
+            fn gen_test(self, index: usize) -> bool {
+                self.test(index)
+            }
+
+            #[inline]
+            fn gen_set(&mut self, index: usize, value: bool) {
+                self.set(index, value);
+            }
+        }
+
         implementation! {
             @simd_impl
             $len,
             $struct_name,
+            $mask_name,
             $trait_name,
-            (i8, not_float, not_unsigned)
-            (u8, not_float, is_unsigned)
-            (i16, not_float, not_unsigned)
-            (u16, not_float, is_unsigned)
-            (i32, not_float, not_unsigned)
-            (u32, not_float, is_unsigned)
-            (i64, not_float, not_unsigned)
-            (u64, not_float, is_unsigned)
-            (isize, not_float, not_unsigned)
-            (usize, not_float, is_unsigned)
-            (f32, is_float, not_unsigned)
-            (f64, is_float, not_unsigned)
+            $trait_mask_name,
+            (i8, i8, not_float, not_unsigned)
+            (u8, i8, not_float, is_unsigned)
+            (i16, i16, not_float, not_unsigned)
+            (u16, i16, not_float, is_unsigned)
+            (i32, i32, not_float, not_unsigned)
+            (u32, i32, not_float, is_unsigned)
+            (i64, i64, not_float, not_unsigned)
+            (u64, i64, not_float, is_unsigned)
+            (isize, isize, not_float, not_unsigned)
+            (usize, isize, not_float, is_unsigned)
+            (f32, i32, is_float, not_unsigned)
+            (f64, i64, is_float, not_unsigned)
         }
 
         impl<$gen: Copy> $struct_name<$gen> {
@@ -755,7 +1051,53 @@ macro_rules! implementation {
             }
         }
 
+        impl<$gen: Copy + PartialEq> $struct_name<$gen> {
+            pub(crate) fn packed_eq(self, other: Self) -> $mask_name<$gen> {
+                $mask_name(self.0.gen_packed_eq(other.0))
+            }
+
+            pub(crate) fn packed_ne(self, other: Self) -> $mask_name<$gen> {
+                $mask_name(self.0.gen_packed_ne(other.0))
+            }
+        }
+
+        impl<$gen: Copy> $mask_name<$gen> {
+            pub(crate) fn new(array: [bool; $len]) -> Self {
+                Self(<<$gen as MaybeSimd>::$assoc_name as $trait_name<$gen>>::EqMask::gen_new(array))
+            }
+
+            pub(crate) fn splat(value: bool) -> Self {
+                Self(<<$gen as MaybeSimd>::$assoc_name as $trait_name<$gen>>::EqMask::gen_splat(value))
+            }
+
+            pub(crate) fn into_inner(self) -> [bool; $len] {
+                self.0.gen_into_inner()
+            }
+
+            pub(crate) fn all(self) -> bool {
+                self.0.gen_all()
+            }
+
+            pub(crate) fn any(self) -> bool {
+                self.0.gen_any()
+            }
+
+            pub(crate) fn test(self, index: usize) -> bool {
+                self.0.gen_test(index)
+            }
+
+            pub(crate) fn set(&mut self, index: usize, value: bool) {
+                self.0.gen_set(index, value);
+            }
+        }
+
         impl<$gen: Copy + fmt::Debug> fmt::Debug for $struct_name<$gen> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                self.0.gen_fmt(f)
+            }
+        }
+
+        impl<$gen: Copy> fmt::Debug for $mask_name<$gen> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 self.0.gen_fmt(f)
             }
@@ -801,11 +1143,27 @@ macro_rules! implementation {
             }
         }
 
+        impl<$gen: Copy> ops::BitAnd for $mask_name<$gen> {
+            type Output = Self;
+
+            fn bitand(self, other: Self) -> Self::Output {
+                Self(self.0.gen_bitand(other.0))
+            }
+        }
+
         impl<$gen: Copy + ops::BitOr<Output = $gen>> ops::BitOr for $struct_name<$gen> {
             type Output = Self;
 
             fn bitor(self, other: Self) -> Self::Output {
                 self.0.gen_bitor(other.0)
+            }
+        }
+
+        impl<$gen: Copy> ops::BitOr for $mask_name<$gen> {
+            type Output = Self;
+
+            fn bitor(self, other: Self) -> Self::Output {
+                Self(self.0.gen_bitor(other.0))
             }
         }
 
@@ -817,11 +1175,27 @@ macro_rules! implementation {
             }
         }
 
+        impl<$gen: Copy> ops::BitXor for $mask_name<$gen> {
+            type Output = Self;
+
+            fn bitxor(self, other: Self) -> Self::Output {
+                Self(self.0.gen_bitxor(other.0))
+            }
+        }
+
         impl<$gen: Copy + ops::Not<Output = $gen>> ops::Not for $struct_name<$gen> {
             type Output = Self;
 
             fn not(self) -> Self::Output {
                 self.0.gen_not()
+            }
+        }
+
+        impl<$gen: Copy> ops::Not for $mask_name<$gen> {
+            type Output = Self;
+
+            fn not(self) -> Self::Output {
+                Self(self.0.gen_not())
             }
         }
 
@@ -869,6 +1243,12 @@ macro_rules! implementation {
             }
         }
 
+        impl<$gen: Copy> PartialEq for $mask_name<$gen> {
+            fn eq(&self, other: &Self) -> bool {
+                self.0.gen_partial_eq(&other.0)
+            }
+        }
+
         impl<$gen: Copy + Eq> Eq for $struct_name<$gen> {}
 
         impl<$gen: Copy + PartialOrd> PartialOrd for $struct_name<$gen> {
@@ -892,6 +1272,12 @@ macro_rules! implementation {
         impl<$gen: Copy + Default> Default for $struct_name<$gen> {
             fn default() -> Self {
                 $struct_name(<$gen as MaybeSimd>::$assoc_name::gen_default())
+            }
+        }
+
+        impl<$gen: Copy> Default for $mask_name<$gen> {
+            fn default() -> Self {
+                $mask_name(<<$gen as MaybeSimd>::$assoc_name as $trait_name<$gen>>::EqMask::gen_default())
             }
         }
 
@@ -939,6 +1325,26 @@ macro_rules! implementation {
             pub(crate) fn min(self, other: Self) -> Self {
                 self.0.gen_min(other.0)
             }
+
+            pub(crate) fn clamp(self, min: Self, max: Self) -> Self {
+                self.0.gen_clamp(min.0, max.0)
+            }
+
+            pub(crate) fn packed_gt(self, other: Self) -> $mask_name<$gen> {
+                $mask_name(self.0.gen_packed_gt(other.0))
+            }
+
+            pub(crate) fn packed_lt(self, other: Self) -> $mask_name<$gen> {
+                $mask_name(self.0.gen_packed_lt(other.0))
+            }
+
+            pub(crate) fn packed_ge(self, other: Self) -> $mask_name<$gen> {
+                $mask_name(self.0.gen_packed_ge(other.0))
+            }
+
+            pub(crate) fn packed_le(self, other: Self) -> $mask_name<$gen> {
+                $mask_name(self.0.gen_packed_le(other.0))
+            }
         }
 
         impl<$gen: Real> $struct_name<$gen> {
@@ -967,10 +1373,10 @@ macro_rules! implementation {
 
 implementation! {
     T, 2,
-    Double, AsDouble, Double,
+    Double, DoubleMask, AsDouble, AsDoubleMask, Double,
 }
 
 implementation! {
     T, 4,
-    Quad, AsQuad, Quad,
+    Quad, QuadMask, AsQuad, AsQuadMask, Quad,
 }
